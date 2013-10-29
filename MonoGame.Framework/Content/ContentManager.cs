@@ -263,7 +263,6 @@ namespace Microsoft.Xna.Framework.Content
 				throw new ObjectDisposedException("ContentManager");
 			}
 						
-			string originalAssetName = assetName;
 			object result = null;
 
 			if (this.graphicsDeviceService == null)
@@ -290,7 +289,7 @@ namespace Microsoft.Xna.Framework.Content
                         {
                             result = reader.ReadAsset<T>();
                             if (result is GraphicsResource)
-                                ((GraphicsResource)result).Name = originalAssetName;
+                                ((GraphicsResource)result).Name = assetName;
                         }
                     }
                 }
@@ -304,33 +303,12 @@ namespace Microsoft.Xna.Framework.Content
             }
             catch (ContentLoadException ex)
             {
-				//MonoGame try to load as a non-content file
-
-                assetName = TitleContainer.GetFilename(Path.Combine(RootDirectory, assetName));
-
-                assetName = Normalize<T>(assetName);
-	
-				if (string.IsNullOrEmpty(assetName))
-				{
-					throw new ContentLoadException("Could not load " + originalAssetName + " asset as a non-content file!", ex);
-				}
-
-                result = ReadRawAsset<T>(assetName, originalAssetName);
-
-                // Because Raw Assets skip the ContentReader step, they need to have their
-                // disopsables recorded here. Doing it outside of this catch will 
-                // result in disposables being logged twice.
-                if (result is IDisposable)
-                {
-                    if (recordDisposableObject != null)
-                        recordDisposableObject(result as IDisposable);
-                    else
-                        disposableAssets.Add(result as IDisposable);
-                }
+				// MonoGame try to load as a non-content file
+                result = LoadRawAsset<T>(assetName);
 			}
             
 			if (result == null)
-				throw new ContentLoadException("Could not load " + originalAssetName + " asset!");
+                throw new ContentLoadException("Could not load " + assetName + " asset!");
 
 			return (T)result;
 		}
@@ -362,8 +340,19 @@ namespace Microsoft.Xna.Framework.Content
             return null;
         }
 
-        protected virtual object ReadRawAsset<T>(string assetName, string originalAssetName)
+        public virtual T LoadRawAsset<T>(string assetName)
         {
+            object result = default(T);
+
+            var originalAssetName = assetName;
+            assetName = TitleContainer.GetFilename(Path.Combine(RootDirectory, assetName));
+            assetName = Normalize<T>(assetName);
+
+            if (string.IsNullOrEmpty(assetName))
+            {
+                throw new ContentLoadException("Could not load " + originalAssetName + " asset as a non-content file!");
+            }
+
             if (typeof(T) == typeof(Texture2D) || typeof(T) == typeof(Texture))
             {
                 using (Stream assetStream = TitleContainer.OpenStream(assetName))
@@ -371,7 +360,7 @@ namespace Microsoft.Xna.Framework.Content
                     Texture2D texture = Texture2D.FromStream(
                         graphicsDeviceService.GraphicsDevice, assetStream);
                     texture.Name = originalAssetName;
-                    return texture;
+                    result = texture;
                 }
             }
             else if ((typeof(T) == typeof(SpriteFont)))
@@ -382,12 +371,12 @@ namespace Microsoft.Xna.Framework.Content
 #if !DIRECTX
             else if ((typeof(T) == typeof(Song)))
             {
-                return new Song(assetName);
+                result = new Song(assetName);
             }
             else if ((typeof(T) == typeof(SoundEffect)))
             {
                 using (Stream s = TitleContainer.OpenStream(assetName))
-                    return SoundEffect.FromStream(s);
+                    result = SoundEffect.FromStream(s);
             }
 #endif
             else if ((typeof(T) == typeof(Effect)))
@@ -396,10 +385,16 @@ namespace Microsoft.Xna.Framework.Content
                 {
                     var data = new byte[assetStream.Length];
                     assetStream.Read(data, 0, (int)assetStream.Length);
-                    return new Effect(this.graphicsDeviceService.GraphicsDevice, data);
+                    result = new Effect(this.graphicsDeviceService.GraphicsDevice, data);
                 }
             }
-            return null;
+
+            if (result != null && result is IDisposable)
+            {
+                disposableAssets.Add(result as IDisposable);
+            }
+
+            return (T)result;
         }
 
         private ContentReader GetContentReaderFromXnb(string originalAssetName, ref Stream stream, BinaryReader xnbReader, Action<IDisposable> recordDisposableObject)
