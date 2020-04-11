@@ -53,6 +53,9 @@ namespace Microsoft.Xna.Framework.Content
         {			
 			Type readerType = Enum.GetUnderlyingType(typeof(T));
 			elementReader = manager.GetTypeReader(readerType);
+
+            if (elementReader == null)
+                throw new ContentLoadException(string.Format("EnumReader<{0}> failed to find underlying element reader for type {1}", typeof(T).FullName, readerType.FullName));
         }
 		
         protected internal override T Read(ContentReader input, T existingInstance)

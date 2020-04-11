@@ -64,6 +64,9 @@ namespace Microsoft.Xna.Framework.Content
 			
 			keyReader = manager.GetTypeReader(keyType);
 			valueReader = manager.GetTypeReader(valueType);
+
+            if (keyReader == null || valueReader == null)
+                throw new ContentLoadException(string.Format("DictionaryReader<{0}, {1}> failed to find key and value readers", keyType.FullName, valueType.FullName));
         }
 
         public override bool CanDeserializeIntoExistingObject

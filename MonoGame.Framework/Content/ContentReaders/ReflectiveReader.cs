@@ -63,7 +63,7 @@ namespace Microsoft.Xna.Framework.Content
             }
         }
 
-        private static ReadElement GetElementReader(ContentTypeReaderManager manager, MemberInfo member)
+        private ReadElement GetElementReader(ContentTypeReaderManager manager, MemberInfo member)
         {
             var property = member as PropertyInfo;
             var field = member as FieldInfo;
@@ -149,7 +149,7 @@ namespace Microsoft.Xna.Framework.Content
                 if (elementType == typeof(System.Array))
                     reader = new ArrayReader<Array>();
                 else
-                    throw new ContentLoadException(string.Format("Content reader could not be found for {0} type.", elementType.FullName));
+                    throw new ContentLoadException(string.Format("ReflectiveReader<{0}> could not find element reader for member {1} of type {2}", TargetType.FullName, member.Name, elementType.FullName));
 
             // We use the construct delegate to pick the correct existing 
             // object to be the target of deserialization.

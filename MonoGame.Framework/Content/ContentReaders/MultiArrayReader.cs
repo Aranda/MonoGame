@@ -17,6 +17,9 @@ namespace Microsoft.Xna.Framework.Content
         {
             Type readerType = typeof(T);
             elementReader = manager.GetTypeReader(readerType);
+
+            if (elementReader == null)
+                throw new ContentLoadException(string.Format("MultiArrayReader<{0}> failed to find element reader", readerType.FullName));
         }
 
         protected internal override Array Read(ContentReader input, Array existingInstance)

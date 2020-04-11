@@ -46,6 +46,9 @@ namespace Microsoft.Xna.Framework.Content
         {
 			Type readerType = typeof(T);
 			elementReader = manager.GetTypeReader(readerType);
+
+            if (elementReader == null)
+                throw new ContentLoadException(string.Format("ListReader<{0}> failed to find element reader", readerType.FullName));
         }
 
         public override bool CanDeserializeIntoExistingObject
