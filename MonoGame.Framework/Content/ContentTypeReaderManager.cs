@@ -141,20 +141,28 @@ namespace Microsoft.Xna.Framework.Content
                     // string readerTypeString = reader.ReadString();
                     string originalReaderTypeString = reader.ReadString();
 
+                    // Check if we have have added a specific content type reader creation function for this type
                     Func<ContentTypeReader> readerFunc;
-                    if (typeCreators.TryGetValue(originalReaderTypeString, out readerFunc))
+                    if (_typeCreators.TryGetValue(originalReaderTypeString, out readerFunc))
                     {
-                        contentReaders[i] = readerFunc();
-                        needsInitialize[i] = true;
+                        // Create the reader instance from our predefined function
+                        var readerInst = readerFunc();
+                        var readerType = readerInst.GetType();
+
+                        // Check if we've already cached an initialized reader instance
+                        ContentTypeReader typeReader;
+                        if (!_contentReadersCache.TryGetValue(readerType, out typeReader))
+                        {
+                            typeReader = readerInst;
+                            _contentReadersCache.Add(readerType, readerInst);
+                            needsInitialize[i] = true;
+                        }
+                        contentReaders[i] = typeReader;
                     }
                     else
                     {
-                        //System.Diagnostics.Debug.WriteLine(originalReaderTypeString);
-
                         // Need to resolve namespace differences
-                        string readerTypeString = originalReaderTypeString;
-
-                        readerTypeString = PrepareType(readerTypeString);
+                        string readerTypeString = PrepareType(originalReaderTypeString);
 
                         var l_readerType = Type.GetType(readerTypeString);
                         if (l_readerType != null)
@@ -171,8 +179,8 @@ namespace Microsoft.Xna.Framework.Content
                                     // If you are getting here, the Mono runtime is most likely not able to JIT the type.
                                     // In particular, MonoTouch needs help instantiating types that are only defined in strings in Xnb files. 
                                     throw new InvalidOperationException(
-                                        "Failed to get default constructor for ContentTypeReader. To work around, add a creation function to ContentTypeReaderManager.AddTypeCreator() " +
-                                        "with the following failed type string: " + originalReaderTypeString, ex);
+                                        "Failed to get default constructor for ContentTypeReader. You may need to ContentTypeReaderManager.AddTypeCreator() " +
+                                        "with the following type string:\n" + originalReaderTypeString, ex);
                                 }
 
                                 needsInitialize[i] = true;
@@ -184,8 +192,8 @@ namespace Microsoft.Xna.Framework.Content
                         }
                         else
                             throw new ContentLoadException(
-                                    "Could not find ContentTypeReader Type. Please ensure the name of the Assembly that contains the Type matches the assembly in the full type name: " +
-                                    originalReaderTypeString + " (" + readerTypeString + ")");
+                                "Failed to get type ContentTypeReader. You may need to ContentTypeReaderManager.AddTypeCreator() " +
+                                "with the following type string:\n" + originalReaderTypeString);
                     }
 
                     var targetType = contentReaders[i].TargetType;
@@ -246,7 +254,7 @@ namespace Microsoft.Xna.Framework.Content
 		}
 
         // Static map of type names to creation functions. Required as iOS requires all types at compile time
-        private static Dictionary<string, Func<ContentTypeReader>> typeCreators = new Dictionary<string, Func<ContentTypeReader>>();
+        private static Dictionary<string, Func<ContentTypeReader>> _typeCreators = new Dictionary<string, Func<ContentTypeReader>>();
 
         /// <summary>
         /// Adds the type creator.
@@ -259,13 +267,13 @@ namespace Microsoft.Xna.Framework.Content
         /// </param>
         public static void AddTypeCreator(string typeString, Func<ContentTypeReader> createFunction)
         {
-            if (!typeCreators.ContainsKey(typeString))
-                typeCreators.Add(typeString, createFunction);
+            if (!_typeCreators.ContainsKey(typeString))
+                _typeCreators.Add(typeString, createFunction);
         }
 
         public static void ClearTypeCreators()
         {
-            typeCreators.Clear();
+            _typeCreators.Clear();
         }
 
     }
